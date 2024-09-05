@@ -98,9 +98,8 @@ void writeConstant(Chunk* chunk, Value value, int line) {
   }
 
   writeChunk(chunk, OP_CONSTANT_LONG, line);
-  // it's 3 iterations for 24-bit addressing.
+  // it's 3 bytes for 24-bit addressing, thus 3 iterations.
   for (int i = 0; i < 3; i++) {
-
     writeChunk(chunk, (uint8_t) ((index >> (i * 8)) & 0xff), line);
   }
 }
