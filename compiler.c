@@ -4,7 +4,7 @@
 #include "compiler.h"
 #include "scanner.h"
 
-void complier(const char* source) {
+void compile(const char* source) {
     initScanner(source);
 
     int line = -1;
@@ -16,7 +16,7 @@ void complier(const char* source) {
         } else {
             printf("   | ");
         }
-        pritnf("%2d '%.*s'\n", token.type, token.length, token.start);
+        printf("%2d '%.*s'\n", token.type, token.length, token.start);
 
         if (token.type == TOKEN_EOF)
             break;
