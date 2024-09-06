@@ -30,6 +30,14 @@ Value pop() {
     return *(--vm.stackTop);
 }
 
+Value longConstantInstruction(int offset) {
+    uint32_t constant = (uint32_t) vm.chunk->code[offset] |
+                        (uint32_t) vm.chunk->code[offset + 1] << 8 |
+                        (uint32_t) vm.chunk->code[offset + 2] << 16;
+    printf("%d\n", offset);
+    return vm.chunk->constants.values[constant];
+}
+
 static InterpretResult run() {
 #define READ_BYTE() (*vm.ip++)
 #define READ_CONSTANT() (vm.chunk->constants.values[READ_BYTE()])
@@ -45,9 +53,9 @@ static InterpretResult run() {
 #ifdef DEBUG_TRACE_EXECUTION
         printf("          ");
         for (Value* slot = vm.stack; slot < vm.stackTop; slot++) {
-        printf("[ ");
-        printValue(*slot);
-        printf(" ]");
+            printf("[ ");
+            printValue(*slot);
+            printf(" ]");
         }
         printf("\n");
         disassembleInstruction(vm.chunk, (int)(vm.ip - vm.chunk->code));
@@ -59,12 +67,12 @@ static InterpretResult run() {
                 Value constant = READ_CONSTANT();
                 push(constant);
                 break;
-            }
+            } //push(-pop());
             case OP_ADD:        BINARY_OP(+); break;
             case OP_SUBTRACT:   BINARY_OP(-); break;
             case OP_MULTIPLY:   BINARY_OP(*); break;
             case OP_DIVIDE:     BINARY_OP(/); break;
-            case OP_NEGATE:     push(-pop()); break;
+            case OP_NEGATE:     *(vm.stackTop - 1) *= -1; break; 
             case OP_RETURN: {
                 printValue(pop());
                 printf("\n");
