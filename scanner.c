@@ -87,7 +87,7 @@ static void skipWhiteSpace() {
                 break;
             case '\n':
                 scanner.line++;
-                advance;
+                advance();
                 break;
             case '/':
                 // this is to not consume the first '/' incase this is not a comment.
