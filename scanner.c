@@ -48,7 +48,7 @@ static char peekNext() {
 }
 
 static char match(char expected) {
-    if (isAtEnd)
+    if (isAtEnd()) 
         return false;
     
     if (*scanner.current != expected)

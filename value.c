@@ -26,5 +26,32 @@ void freeValueArray(ValueArray* array) {
 }
 
 void printValue(Value value) {
-    printf("%g", value);
+    switch(value.type) {
+        case VAL_BOOL:
+            printf(AS_BOOL(value) ? "true": "false");
+            break;
+        case VAL_NIL: printf("nil"); break;
+        case VAL_NUMBER: printf("%g", AS_NUMBER(value)); break;
+    }
+}
+
+// PHP considers the strings “1” and “01” to be 
+// equivalent because both can be converted to equivalent 
+// numbers, though the ultimate reason is because PHP was 
+// designed by a Lovecraftian eldritch god to destroy the mind.
+
+// also cant compare the unions directly because padding can cause weird shit.
+// thats kinda funny.
+
+bool valuesEqual(Value a, Value b) {
+    if (a.type != b.type)
+        return false;
+    
+    // a.type == b.type, so this checks for both
+    switch(a.type) {
+        case VAL_BOOL:  return AS_BOOL(a) == AS_BOOL(b);
+        case VAL_NIL:   return true;
+        case VAL_NUMBER:return AS_NUMBER(a) == AS_NUMBER(b);
+        default: return false; // unreachable.
+    }
 }

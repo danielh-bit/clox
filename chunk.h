@@ -6,10 +6,19 @@
 
 typedef enum {
     OP_CONSTANT,
+    OP_NIL,
+    OP_TRUE,
+    OP_FALSE,
+    // would be faster to do != , >=, <= but he cant bother.
+    // and for NaN there is the problem that a <= b is not the same as !(a > b)
+    OP_EQUAL,
+    OP_GREATER,
+    OP_LESS,
     OP_ADD,
     OP_SUBTRACT,
     OP_MULTIPLY,
     OP_DIVIDE,
+    OP_NOT,
     OP_NEGATE,
     OP_CONSTANT_LONG,
     OP_RETURN,
