@@ -27,6 +27,10 @@ struct ObjString {
     Obj obj;
     int length;
     char* chars;
+    // we add the hash into the string object because copying the chars of the string
+    // takes O(n), creating the hash takes the same O(n), so it is efficient to eagerly
+    // create the hash.
+    uint32_t hash;
 };
 
 ObjString* takeString(char* chars, int length);
