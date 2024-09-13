@@ -9,6 +9,8 @@ typedef enum {
     OP_NIL,
     OP_TRUE,
     OP_FALSE,
+    OP_POP,
+    OP_DEFINE_GLOBAL,
     // would be faster to do != , >=, <= but he cant bother.
     // and for NaN there is the problem that a <= b is not the same as !(a > b)
     OP_EQUAL,
@@ -20,6 +22,7 @@ typedef enum {
     OP_DIVIDE,
     OP_NOT,
     OP_NEGATE,
+    OP_PRINT,
     OP_CONSTANT_LONG,
     OP_RETURN,
 } OpCode;
