@@ -30,7 +30,7 @@ typedef enum {
     PREC_PRIMARY
 } Precedence;
 
-typedef void (*ParseFn)();
+typedef void (*ParseFn)(bool canAssign);
 
 typedef struct {
     ParseFn prefix;
@@ -147,20 +147,20 @@ static void declaration();
 static ParseRule* getRule(TokenType type);
 static void parsePrecedence(Precedence precedence);
 
-static uint8_t parseVarialbe(const char* errorMessage) {
-    consumeToken(TOKEN_IDENTIFIER, errorMessage);
-    return identifierConstant(&parser.previous);
-}
-
-static void defineVaraible(uint8_t global) {
-    emitBytes(OP_DEFINE_GLOBAL, global);
-}
-
 static uint8_t identifierConstant(Token* name) {
     return makeConstant(OBJ_VAL(copyString(name->start, name->length)));
 }
 
-static void binary() {
+static uint8_t parseVariable(const char* errorMessage) {
+    consume(TOKEN_IDENTIFIER, errorMessage);
+    return identifierConstant(&parser.previous);
+}
+
+static void defineVariable(uint8_t global) {
+    emitBytes(OP_DEFINE_GLOBAL, global);
+}
+
+static void binary(bool canAssign) {
     TokenType operatorType = parser.previous.type;
     ParseRule* rule = getRule(operatorType);
     // this is to compile the right operand
@@ -183,7 +183,7 @@ static void binary() {
     }
 }
 
-static void literal() {
+static void literal(bool canAssign) {
     switch(parser.previous.type) {
         case TOKEN_FALSE: emitByte(OP_FALSE); break;
         case TOKEN_NIL: emitByte(OP_NIL); break;
@@ -197,12 +197,12 @@ static void expression() {
 }
 
 static void varDeclaration() {
-    uint8_t global = parserVariable("Expect variable name");
+    uint8_t global = parseVariable("Expect variable name");
 
     if (match(TOKEN_EQUAL)) {
         expression();
     } else {
-        emit(OP_NIL);
+        emitByte(OP_NIL);
     }
 
     consume(TOKEN_SEMICOLON, "Expect ';' after value");
@@ -270,18 +270,18 @@ static void statement() {
     }
 }
 
-static void grouping() {
+static void grouping(bool canAssign) {
     expression();
     consume(TOKEN_RIGHT_PAREN, "Expect ')' after expression");
 }
 
-static void number() {
+static void number(bool canAssign) {
     // this is a place where the Value typedef could break.
     double value = strtod(parser.previous.start, NULL);
     emitConstant(NUMBER_VAL(value));
 }
 
-static void string() {
+static void string(bool canAssign) {
     // if string escape sequences were added to lox it would be here (i.e: '\n')
 
     // need to trim the leading and trailing quotation marks.
@@ -289,7 +289,22 @@ static void string() {
                  parser.previous.length - 2)));
 }
 
-static void unary() {
+static void namedVariable(Token name, bool canAssign) {
+    uint8_t arg = identifierConstant(&name);
+
+    if (canAssign && match(TOKEN_EQUAL)) {
+        expression();
+        emitBytes(OP_SET_GLOBAL, arg);
+    } else {   
+        emitBytes(OP_GET_GLOBAL, arg);
+    }
+}
+
+static void variable(bool canAssign) {
+    namedVariable(parser.previous, canAssign);
+}
+
+static void unary(bool canAssign) {
     TokenType operatorType = parser.previous.type;
 
     // compile operand.
@@ -322,8 +337,8 @@ ParseRule rules[] = {
   [TOKEN_GREATER_EQUAL] = {NULL,     binary,    PREC_COMPARISON},
   [TOKEN_LESS]          = {NULL,     binary,    PREC_COMPARISON},
   [TOKEN_LESS_EQUAL]    = {NULL,     binary,    PREC_COMPARISON},
-  [TOKEN_IDENTIFIER]    = {NULL,     NULL,      PREC_NONE},
-  [TOKEN_STRING]        = {string,   NULL,    PREC_NONE},
+  [TOKEN_IDENTIFIER]    = {variable, NULL,      PREC_NONE},
+  [TOKEN_STRING]        = {string,   NULL,      PREC_NONE},
   [TOKEN_NUMBER]        = {number,   NULL,      PREC_NONE},
   [TOKEN_AND]           = {NULL,     NULL,      PREC_NONE},
   [TOKEN_CLASS]         = {NULL,     NULL,      PREC_NONE},
@@ -354,12 +369,19 @@ static void parsePrecedence(Precedence precedence) {
         return;
     }
 
-    prefixRule();
+    // this is for making sure that variable assignment is correct.
+    bool canAssign = precedence <= PREC_ASSIGNMENT;
+    prefixRule(canAssign);
 
     while (precedence <= getRule(parser.current.type)->precedence) {
         advance();
         ParseFn infixRule = getRule(parser.previous.type)->infix;
-        infixRule();
+        infixRule(canAssign);
+    }
+
+    // a valid assignment would have already consumed TOKEN_EQUAL
+    if (canAssign && match(TOKEN_EQUAL)) {
+        error("invalid error assignment.");
     }
 }
 
