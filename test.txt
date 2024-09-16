@@ -1,5 +1,5 @@
-var breakfast = "beignets";
-var beverage = "cafe au lait";
-breakfast = "beignets with " + beverage;
+var a = 3;
 
-print breakfast;
+{
+    var a = a;
+}
