@@ -1,5 +1,6 @@
-var a = 3;
+var a = true;
 
-{
-    var a = a;
-}
+if (a and false)
+    print "TRUE!";
+else 
+    print "FALSE!";
