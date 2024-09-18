@@ -221,15 +221,20 @@ static InterpretResult run() {
                 break;
             }
             case OP_JUMP: {
-                uint8_t offset = READ_SHORT();
+                uint16_t offset = READ_SHORT();
                 vm.ip += offset;
                 break;
             }
             case OP_JUMP_IF_FALSE: {
-                uint8_t offset = READ_SHORT();
+                uint16_t offset = READ_SHORT();
 
                 if (isFalsy(peek(0)))
                     vm.ip += offset;
+                break;
+            }
+            case OP_LOOP: {
+                uint16_t offset = READ_SHORT();
+                vm.ip -= offset;
                 break;
             }
             case OP_RETURN: {
