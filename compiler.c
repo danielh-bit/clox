@@ -197,7 +197,7 @@ static void initCompiler(Compiler* compiler, FunctionType type) {
     compiler->function = newFunction();
     current = compiler;
 
-    // allocate stack position 0 for vm use.
+    // allocate stack position 0 for the main function.
     Local* local = &current->locals[current->localCount++];
     local->depth = 0;
     local->name.start = "";
@@ -853,7 +853,7 @@ static ParseRule* getRule(TokenType type) {
     return &rules[type];
 }
 
-ObjFunction* compile(const char* source, Chunk* chunk) {
+ObjFunction* compile(const char* source) {
     initScanner(source);
     Compiler compiler;
     initCompiler(&compiler, TYPE_SCRIPT);

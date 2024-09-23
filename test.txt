@@ -6,4 +6,4 @@ exists (a) {
     print "):";
 }
 
-print "after";
+print "after" + a;
