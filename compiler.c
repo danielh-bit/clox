@@ -435,7 +435,7 @@ static void function(FunctionType type) {
     block();
     
     ObjFunction* function = endCompiler(); // no end scope because endCompiler() covers for that.
-    emitBytes(OP_CONSTANT, makeConstant(OBJ_VAL(function)));
+    emitBytes(OP_CLOSURE, makeConstant(OBJ_VAL(function)));
 }
 
 static void funDeclaration() {

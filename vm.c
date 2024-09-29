@@ -93,9 +93,9 @@ static Value peek(int distance) {
 }
 
 // mutates the call frame stack to initialize new callee at the top
-static bool call(ObjFunction* function, int argCount) {
-    if (function->arity != argCount){
-        runtimeError("Expected %d arguments but got %d.", function->arity, argCount);
+static bool call(ObjClosure* closure, int argCount) {
+    if (closure->function->arity != argCount){
+        runtimeError("Expected %d arguments but got %d.", closure->function->arity, argCount);
         return false;
     }
 
@@ -105,8 +105,8 @@ static bool call(ObjFunction* function, int argCount) {
     }
 
     CallFrame* frame = &vm.frames[vm.frameCount++];
-    frame->function = function;
-    frame->ip = function->chunk.code;
+    frame->closure = closure;
+    frame->ip = closure->function->chunk.code;
     // jump the stack back so that the arguments are within the new call frame, and the function
     // is stored at stack index 0.
     frame->slots = vm.stackTop - argCount - 1;
@@ -116,8 +116,8 @@ static bool call(ObjFunction* function, int argCount) {
 static bool callValue(Value callee, int argCount) {
     if (IS_OBJ(callee)) {
         switch (OBJ_TYPE(callee)) {
-            case OBJ_FUNCTION:
-                return call(AS_FUNCTION(callee), argCount);
+            case OBJ_CLOSURE:
+                return call(AS_CLOSURE(callee), argCount);
             case OBJ_NATIVE:
                 NativeFn native = AS_NATIVE(callee);
                 Value result = native(argCount, vm.stackTop - argCount);
@@ -315,6 +315,12 @@ static InterpretResult run() {
                 }
                 frame = &vm.frames[vm.frameCount - 1]; // new frame count after mutation from callValue
 
+                break;
+            }
+            case OP_CLOSURE: {
+                ObjFunction* function = AS_FUNCTION(READ_CONSTANT());
+                ObjClosure* closure = newClosure(function);
+                push(OBJ_VAL(closure));
                 break;
             }
             case OP_RETURN: {
