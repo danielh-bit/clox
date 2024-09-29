@@ -16,6 +16,8 @@ typedef enum {
     OP_GET_GLOBAL,
     OP_DEFINE_GLOBAL,
     OP_SET_GLOBAL,
+    OP_GET_UPVALUE,
+    OP_SET_UPVALUE,
     // would be faster to do != , >=, <= but he cant bother.
     // and for NaN there is the problem that a <= b is not the same as !(a > b)
     OP_EQUAL,

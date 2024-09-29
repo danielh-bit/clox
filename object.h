@@ -36,6 +36,7 @@ struct Obj {
 typedef struct {
     Obj obj;
     int arity;
+    int upvalueCount; // stored in function and not in the compiler because it is needed at runtime.
     Chunk chunk;
     ObjString* name;
 } ObjFunction;

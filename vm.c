@@ -35,7 +35,7 @@ static void runtimeError(const char* format, ...) {
 
     for (int i = vm.frameCount - 1; i >= 0; i--) {
         CallFrame* frame = &vm.frames[i];
-        ObjFunction* function = frame->function;
+        ObjFunction* function = frame->closure->function;
         size_t instruction = frame->ip - function->chunk.code - 1; // -1 to point to previous failed instruction
 
         fprintf(stderr, "[line %d] in ", getLine(&function->chunk, instruction));
@@ -164,7 +164,7 @@ static InterpretResult run() {
     CallFrame* frame = &vm.frames[vm.frameCount - 1];
 
 #define READ_BYTE() (*frame->ip++)
-#define READ_CONSTANT() (frame->function->chunk.constants.values[READ_BYTE()])
+#define READ_CONSTANT() (frame->closure->function->chunk.constants.values[READ_BYTE()])
 #define READ_SHORT() \
     (frame->ip += 2, (uint16_t)((frame->ip[-2] << 8) | (frame->ip[-1])))
 #define READ_STRING() AS_STRING(READ_CONSTANT())
@@ -190,7 +190,7 @@ static InterpretResult run() {
             printf(" ]");
         }
         printf("\n");
-        disassembleInstruction(&frame->function->chunk, (int)(frame->ip - frame->function->chunk.code));
+        disassembleInstruction(&frame->closure->function->chunk, (int)(frame->ip - frame->closure->function->chunk.code));
 #endif
 
         uint8_t instruction;
@@ -352,7 +352,10 @@ InterpretResult interpret(const char* source) {
         return INTERPRET_COMPIPLE_ERROR;
     
     push(OBJ_VAL(function));
-    call(function, 0); // setup the callFrame for the implicit main function.
+    ObjClosure* closure = newClosure(function);
+    pop();  // garbage collection stuff
+    push(OBJ_VAL(closure));
+    call(closure, 0); // setup implicit main function.
 
     return run();
 }

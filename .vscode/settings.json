@@ -3,7 +3,8 @@
         "memory.h": "c",
         "common.h": "c",
         "stdbool.h": "c",
-        "value.h": "c"
+        "value.h": "c",
+        "functional": "c"
     },
     "C_Cpp.errorSquiggles": "enabled"
 }
