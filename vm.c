@@ -20,6 +20,7 @@ static Value clockNative(int argCount, Value* args) {
 static void resetStack() {
     vm.stackTop = vm.stack;
     vm.frameCount = 0;
+    vm.openUpvalues = NULL;
 }
 
 // lol the lines don't work.
@@ -130,6 +131,44 @@ static bool callValue(Value callee, int argCount) {
     }
     runtimeError("Can only call function and classes.");
     return false;
+}
+
+static ObjUpvalue* captureUpvalue(Value* local) {
+    ObjUpvalue* prevUpvalue = NULL;
+    ObjUpvalue* upvalue = vm.openUpvalues; // this is a linked list.
+    // we start at the end of the upvalue linked list, the end will point to the upvalue
+    // that is closest to the top of the stack. because of this, we know that when the location
+    // of the upvalue is before the local, then it is not previously captured.
+    while (upvalue != NULL && upvalue->location > local) {
+        prevUpvalue = upvalue;
+        upvalue = upvalue->next;
+    }
+
+    if (upvalue != NULL && upvalue->location == local)
+        return upvalue;
+
+    ObjUpvalue* createdUpvalue = newUpvalue(local);
+    createdUpvalue->next = upvalue;
+
+    if (prevUpvalue == NULL) {
+        vm.openUpvalues = createdUpvalue; // set HEAD for linked list
+    } else {
+        prevUpvalue->next = createdUpvalue; // add to linked list.
+    }
+
+    return createdUpvalue;
+}
+
+static void closeUpvalues(Value* last) {
+    while (vm.openUpvalues != NULL && vm.openUpvalues->location >= last) {
+        ObjUpvalue* upvalue = vm.openUpvalues;
+        // now the upvalue is not stored on the stack. Thus, it needs to keep in on the heap (the ObjUpvalue).
+        // to do this, it saves the Value in the closed field. and makes location point to that field to make 
+        // the rest of the code still work.
+        upvalue->closed = *upvalue->location;
+        upvalue->location = &upvalue->closed;
+        vm.openUpvalues = upvalue->next;
+    }
 }
 
 static bool isFalsy(Value value) {
@@ -247,6 +286,16 @@ static InterpretResult run() {
                 }
                 break;
             }
+            case OP_GET_UPVALUE: {
+                uint8_t slot = READ_BYTE();
+                push(*frame->closure->upvalues[slot]->location);
+                break;
+            }
+            case OP_SET_UPVALUE: {
+                uint8_t slot = READ_BYTE();
+                *frame->closure->upvalues[slot]->location = peek(0);
+                break;
+            }
             case OP_EQUAL:
                 Value b = pop();
                 Value a = pop();
@@ -321,10 +370,29 @@ static InterpretResult run() {
                 ObjFunction* function = AS_FUNCTION(READ_CONSTANT());
                 ObjClosure* closure = newClosure(function);
                 push(OBJ_VAL(closure));
+
+                for (int i = 0; i < closure->upvalueCount; i++) {
+                    uint8_t isLocal = READ_BYTE();
+                    uint8_t index = READ_BYTE();
+                    if (isLocal) {
+                        // pass the current slot we want to capture.
+                        closure->upvalues[i] = captureUpvalue(frame->slots + index);
+                    } else {
+                        // the current function in frame is the surrounding one.
+                        closure->upvalues[i] = frame->closure->upvalues[index];
+                    }
+                }
+
+                break;
+            }
+            case OP_CLOSE_UPVALUE: {
+                closeUpvalues(vm.stackTop - 1);
+                pop(); // remove the upvalue from the stack. (he is on top)
                 break;
             }
             case OP_RETURN: {
                 Value result = pop(); // we pop this because the entire stack window will be discarded
+                closeUpvalues(frame->slots);
                 vm.frameCount--;
                 if(vm.frameCount == 0) {
                     pop(); // pop main (script)

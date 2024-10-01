@@ -19,6 +19,8 @@ void* reallocate(void* pointer, size_t oldSize, size_t newSize) {
 static void freeObject(Obj* object) {
     switch(object->type) {
         case OBJ_CLOSURE: {
+            ObjClosure* closure = (ObjClosure*) closure;
+            FREE_ARRAY(ObjUpvalue*, closure->upvalues, closure->upvalueCount);
             // we don't free the function because the closure doesn't own the function
             // multiple closures can own the same function.
             FREE(ObjClosure, object);
@@ -38,6 +40,10 @@ static void freeObject(Obj* object) {
             ObjString* string = (ObjString*) object;
             FREE_ARRAY(char, string->chars, string->length + 1);
             FREE(ObjString, object);
+            break;
+        }
+        case OBJ_UPVALUE: {
+            FREE(ObjUpvalue, object);
             break;
         }
     }

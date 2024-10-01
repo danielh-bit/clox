@@ -42,6 +42,7 @@ typedef struct {
 typedef struct {
     Token name;
     int depth;
+    bool isCaptured;
 } Local;
 
 typedef struct {
@@ -212,6 +213,7 @@ static void initCompiler(Compiler* compiler, FunctionType type) {
     // allocate stack position 0 for the main function.
     Local* local = &current->locals[current->localCount++];
     local->depth = 0;
+    local->isCaptured = false;
     local->name.start = "";
     local->name.length = 0;
 }
@@ -239,11 +241,15 @@ static void endScope() {
 
     // remove all locals in scope.
     while (current->localCount > 0 && current->locals[current->localCount - 1].depth > current->scopeDepth) {
-        // this could be optimized by adding an OP_POPN
-        // this OP will take an operand that will define
-        // how by how much to move the stack pointer back
-        // (poping multiple slots at once)
-        emitByte(OP_POP);
+        if (current->locals[current->localCount - 1].isCaptured) {
+            emitByte(OP_CLOSE_UPVALUE); // the local will be right on top of the stack.
+        } else {
+            // this could be optimized by adding an OP_POPN
+            // this OP will take an operand that will define
+            // how by how much to move the stack pointer back
+            // (poping multiple slots at once)
+            emitByte(OP_POP);
+        }
         current->localCount--;
     }
 }
@@ -307,10 +313,13 @@ static int resolveUpvalue(Compiler* compiler, Token* name) {
     if (compiler->enclosing == NULL)
         return -1;
     
-    int local = resolvelocal(compiler, name);
-    if (local != -1)
+    int local = resolveLocal(compiler->enclosing, name);
+    if (local != -1) {
+        compiler->enclosing->locals[local].isCaptured = true;
         return addUpvalue(compiler, (uint8_t) local, true);
+    }
 
+    // this recursive part searches for the upvalue in the enclosing functions.
     int upvalue = resolveUpvalue(current->enclosing, name);
     if (upvalue != -1)
         return addUpvalue(compiler, upvalue, false);
@@ -329,6 +338,7 @@ static void addLocal(Token name) {
     local->name = name;
     // -1 marks the variable as still unintiallized (this is for some weird edge case).
     local->depth = -1;
+    local->isCaptured = false;
 }
 
 static void declareVariable() {
@@ -478,6 +488,11 @@ static void function(FunctionType type) {
     
     ObjFunction* function = endCompiler(); // no end scope because endCompiler() covers for that.
     emitBytes(OP_CLOSURE, makeConstant(OBJ_VAL(function)));
+
+    for (int i = 0; i < function->upvalueCount; i++) {
+        emitByte(compiler.upvalues[i].isLocal ? 1 : 0);
+        emitByte(compiler.upvalues[i].index);
+    }
 }
 
 static void funDeclaration() {
@@ -875,7 +890,8 @@ static void namedVariable(Token name, bool canAssign) {
     if (arg != -1) {
         getOp = OP_GET_LOCAL;
         setOp = OP_SET_LOCAL;
-    }  else if (arg = resolveUpvalue(current, &name) != -1) {
+    }  else if ((arg = resolveUpvalue(current, &name)) != -1) {
+        printf("HLJKSDFHKJS\n");
         getOp = OP_GET_UPVALUE;
         setOp = OP_SET_UPVALUE;
     }

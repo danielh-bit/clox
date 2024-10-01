@@ -12,7 +12,7 @@
 typedef struct {
     ObjClosure* closure;
     uint8_t* ip;
-    Value* slots;
+    Value* slots; // frame stack.
 } CallFrame;
 
 typedef struct {
@@ -25,6 +25,8 @@ typedef struct {
     Value* stackTop;
     Table globals;
     Table strings;
+
+    ObjUpvalue* openUpvalues;
     // this is so it has a pointer to all objects to free them.
     // me no want memory leak.
     Obj* objects;
