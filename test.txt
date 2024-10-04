@@ -1,18 +1,50 @@
-fun outer() {
-  var x = "value";
-  fun middle() {
-    fun inner() {
-      print x;
-    }
+fun vec(ix, iy) {
+  var x = ix;
+  var y = iy;
 
-    print "create inner closure";
-    return inner;
+  fun set_x(input) {
+    x = input;
   }
 
-  print "return from outer";
-  return middle;
+  fun set_y(input) {
+    y = input;
+  }
+
+  fun get_x() {
+    return x;
+  }
+
+  fun get_y() {
+    return y;
+  }
+
+  fun vec_sum(i_vec) {
+    var sum_x = x + (i_vec(2))();
+    var sum_y = y + (i_vec(3))();
+
+    return vec(sum_x, sum_y);
+  }
+
+  fun method_chooser(choice) {
+    if (choice == 0) {
+      return set_x;
+    } else if (choice == 1) {
+      return set_y;
+    } else if (choice == 2) {
+      return get_x;
+    } else if (choice == 3) {
+      return get_y;
+    } else if (choice == 4) {
+      return vec_sum;
+    }
+  }
+
+  return method_chooser;
 }
 
-var mid = outer();
-var in = mid();
-in();
+var v1 = vec(1, 2);
+var v2 = vec(1, 1);
+var v_sum = (v1(4))(v2); // call v1 function to add v2.
+
+print (v_sum(2))(); // print x
+print (v_sum(3))(); // print y

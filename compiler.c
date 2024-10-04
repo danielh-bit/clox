@@ -105,14 +105,14 @@ static void errorAtCurrent(const char* message) {
 static void advance() {
     parser.previous = parser.current;
 
-    for (;;) {
-        parser.current = scanToken();
+  for (;;) {
+    parser.current = scanToken();
+    // printf("current token: %.*s\n", parser.current.length, parser.current.start);
+    if (parser.current.type != TOKEN_ERROR) 
+        break;
 
-        if (parser.current.type != TOKEN_ERROR)
-            break;
-        
-        errorAtCurrent(parser.current.start);
-    }
+    errorAtCurrent(parser.current.start);
+  }
 }
 
 static void consume(TokenType type, const char* message) {
@@ -278,8 +278,9 @@ static int resolveLocal(Compiler* compiler, Token* name) {
         Local* local = &compiler->locals[i];
         if (identifiersEqual(name, &local->name)) {
             // -1 depth marks a variable that wasn't initialized yet. meaning it is refrencing it self.
-            if (local->depth == -1)
+            if (local->depth == -1) {
                 error("Can't read local variable in its own initializer");
+            }
             
             return i;
         }
@@ -320,9 +321,9 @@ static int resolveUpvalue(Compiler* compiler, Token* name) {
     }
 
     // this recursive part searches for the upvalue in the enclosing functions.
-    int upvalue = resolveUpvalue(current->enclosing, name);
+    int upvalue = resolveUpvalue(compiler->enclosing, name);
     if (upvalue != -1)
-        return addUpvalue(compiler, upvalue, false);
+        return addUpvalue(compiler, (uint8_t) upvalue, false);
 
     return -1;
 }
@@ -542,6 +543,7 @@ static void switchStatement() {
     int caseCount = 0;
 
     while(!match(TOKEN_RIGHT_BRACE) && !check(TOKEN_EOF)) {
+        printf("HI\n");
         TokenType caseType = parser.current.type;
 
         if (caseType == TOKEN_CASE) {
@@ -891,7 +893,6 @@ static void namedVariable(Token name, bool canAssign) {
         getOp = OP_GET_LOCAL;
         setOp = OP_SET_LOCAL;
     }  else if ((arg = resolveUpvalue(current, &name)) != -1) {
-        printf("HLJKSDFHKJS\n");
         getOp = OP_GET_UPVALUE;
         setOp = OP_SET_UPVALUE;
     }

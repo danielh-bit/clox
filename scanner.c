@@ -93,7 +93,7 @@ static void skipWhiteSpace() {
                 // this is to not consume the first '/' incase this is not a comment.
                 if (peekNext() == '/') {
                     // a comment goes until the end of the line. is is essintial that this will not consume the '\n' at the end.
-                    while (peek() != '\n' && !isAtEnd)
+                    while (peek() != '\n' && !isAtEnd())
                         advance();
                 } else {
                     return;

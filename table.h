@@ -4,8 +4,6 @@
 #include "common.h"
 #include "value.h"
 
-#define TABLE_MAX_LOAD 0.75
-
 typedef struct {
     // why not create a new struct for this ??? Prob because of GC stuff.
     ObjString* key;
