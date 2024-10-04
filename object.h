@@ -31,6 +31,7 @@ typedef enum {
 
 struct Obj {
   ObjType type;
+  bool isMarked; // GC stuff
   struct Obj* next; // this is to free all objects later.
 };
 

@@ -63,6 +63,10 @@ void initVM() {
     resetStack();
     vm.objects = NULL;
 
+    vm.grayCapacity = 0;
+    vm.grayCount = 0;
+    vm.grayStack = NULL;
+
     initTable(&vm.globals);
     initTable(&vm.strings);
 
@@ -420,7 +424,7 @@ InterpretResult interpret(const char* source) {
         return INTERPRET_COMPIPLE_ERROR;
     
     push(OBJ_VAL(function));
-    ObjClosure* closure = newClosure(function);
+    ObjClosure* closure = newClosure(function); // main function
     pop();  // garbage collection stuff
     push(OBJ_VAL(closure));
     call(closure, 0); // setup implicit main function.
