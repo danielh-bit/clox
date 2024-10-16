@@ -19,7 +19,9 @@ static Obj* allocateObject(size_t size, ObjType type) {
     vm.objects = object;
 
 #ifdef DEBUG_LOG_GC
-    printf("%p allocate %zu for %d\n", (void*)object, size, type);
+    printf("%p allocate %zu for %d, obj: ", (void*)object, size, type);
+    // printObject(OBJ_VAL(object));
+    printf("\n");
 #endif
 
     return object;
@@ -58,8 +60,10 @@ static ObjString* allocateString(char* chars, int length, uint32_t hash) {
     string->length = length;
     string->chars = chars;
     string->hash = hash;
+    push(OBJ_VAL(string)); // for gc
     // table is used like hash set
     tableSet(&vm.strings, string, NIL_VAL);
+    pop();
 
     return string;
 }
@@ -114,6 +118,7 @@ ObjUpvalue* newUpvalue(Value* slot) {
 }
 
 static void printFunction(ObjFunction* function) {
+    // printf("Name len: %d", function->arity);
     if (function->name == NULL) {
         printf("<script>");
         return;

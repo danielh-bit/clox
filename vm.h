@@ -27,6 +27,9 @@ typedef struct {
     Table strings;
 
     ObjUpvalue* openUpvalues;
+
+    size_t bytesAllocated;
+    size_t nextGC; // threshold for triggerings a collection
     // this is so it has a pointer to all objects to free them.
     // me no want memory leak.
     Obj* objects;

@@ -50,9 +50,9 @@ static void runtimeError(const char* format, ...) {
     resetStack();
 }
 
-static void defineNative(const char* name, NativeFn funciton) {
+static void defineNative(const char* name, NativeFn function) {
     push(OBJ_VAL(copyString(name, (int)strlen(name))));
-    push(OBJ_VAL(newNative(funciton)));
+    push(OBJ_VAL(newNative(function)));
     tableSet(&vm.globals, AS_STRING(vm.stack[0]), vm.stack[1]);
     // garbage collection stuff
     pop();
@@ -66,6 +66,8 @@ void initVM() {
     vm.grayCapacity = 0;
     vm.grayCount = 0;
     vm.grayStack = NULL;
+    vm.bytesAllocated = 0;
+    vm.nextGC = 1024 * 1024;
 
     initTable(&vm.globals);
     initTable(&vm.strings);
@@ -181,8 +183,8 @@ static bool isFalsy(Value value) {
 }
 
 static void concatanate() {
-    ObjString* b = AS_STRING(pop());
-    ObjString* a = AS_STRING(pop());
+    ObjString* b = AS_STRING(peek(0)); // for gc stuff
+    ObjString* a = AS_STRING(peek(1));
 
     int length = a->length + b->length;
     // '+ 1' for null terminted string
@@ -192,6 +194,8 @@ static void concatanate() {
     chars[length] = '\0';
     
     ObjString* result = takeString(chars, length);
+    pop(); // gc
+    pop();
     push(OBJ_VAL(result));
 }
 

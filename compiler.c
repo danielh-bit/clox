@@ -544,7 +544,6 @@ static void switchStatement() {
     int caseCount = 0;
 
     while(!match(TOKEN_RIGHT_BRACE) && !check(TOKEN_EOF)) {
-        printf("HI\n");
         TokenType caseType = parser.current.type;
 
         if (caseType == TOKEN_CASE) {

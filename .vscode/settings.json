@@ -4,7 +4,15 @@
         "common.h": "c",
         "stdbool.h": "c",
         "value.h": "c",
-        "functional": "c"
+        "functional": "c",
+        "compare": "c",
+        "memory": "c",
+        "tuple": "c",
+        "type_traits": "c",
+        "utility": "c",
+        "xmemory": "c",
+        "xtr1common": "c",
+        "xutility": "c"
     },
     "C_Cpp.errorSquiggles": "enabled"
 }

@@ -9,11 +9,18 @@
 #include "debug.h"
 #endif
 
+#define GC_HEAP_GROW_FACTOR 2
+
 void* reallocate(void* pointer, size_t oldSize, size_t newSize) {
+    vm.bytesAllocated += newSize - oldSize;
     if (newSize > oldSize) { // realloc can be used to free, we don't want to triger gc when freeing.
 #ifdef DEBUG_STRESS_GC
         collectGarbage();
 #endif
+    }
+
+    if (vm.bytesAllocated > vm.nextGC) {
+        collectGarbage();
     }
 
     if (newSize == 0) {
@@ -36,7 +43,7 @@ void markObject(Obj* object) {
 
 #ifdef DEBUG_LOG_GC
     printf("%p mark ", (void*)object);
-    printValue(OBJ_VAL(object));
+    // printValue(OBJ_VAL(object));
     printf("\n");
 #endif
     
@@ -57,7 +64,7 @@ void markObject(Obj* object) {
     vm.grayStack[vm.grayCount++] = object;
 }
 
-static void markValue(Value value) {
+void markValue(Value value) {
     if (IS_OBJ(value))
         markObject(AS_OBJ(value));
 }
@@ -71,7 +78,7 @@ static void markArray(ValueArray* array) {
 static void blackenObject(Obj* object) {
 #ifdef DEBUG_LOG_GC
     printf("%p blacken ", (void*)object);
-    printValue(OBJ_VAL(object));
+    // printValue(OBJ_VAL(object));
     printf("\n");
 #endif
 
@@ -85,7 +92,7 @@ static void blackenObject(Obj* object) {
             break;
         }
         case OBJ_FUNCTION: {
-            ObjFunction* function = (ObjFunction *) object;
+            ObjFunction* function = (ObjFunction*) object;
             markObject((Obj*)function->name);
             markArray(&function->chunk.constants);
             break;
@@ -101,12 +108,15 @@ static void blackenObject(Obj* object) {
 
 static void freeObject(Obj* object) {
 #ifdef DEBUG_LOG_GC
-  printf("%p free for type %d\n", (void*)object, object->type);
+  printf("%p free for type %d, obj: ", (void*)object, object->type);
+//   printObject(OBJ_VAL(object));
+  printf("\n");
 #endif
 
     switch(object->type) {
         case OBJ_CLOSURE: {
             ObjClosure* closure = (ObjClosure*) closure;
+            // printf("arity: %d\n", closure->upvalueCount);
             FREE_ARRAY(ObjUpvalue*, closure->upvalues, closure->upvalueCount);
             // we don't free the function because the closure doesn't own the function
             // multiple closures can own the same function.
@@ -125,6 +135,7 @@ static void freeObject(Obj* object) {
         }
         case OBJ_STRING: {
             ObjString* string = (ObjString*) object;
+            // printf("%s", string->chars);
             FREE_ARRAY(char, string->chars, string->length + 1);
             FREE(ObjString, object);
             break;
@@ -160,16 +171,49 @@ static void traceRefrences() {
     }
 }
 
+static void sweep() {
+    Obj* previous = NULL;
+    Obj* object = vm.objects;
+
+    while (object != NULL) {
+        if (object->isMarked) { // if reacheble don't free
+            object->isMarked = false; // reset marking for next time.
+            previous = object;
+            object = object->next;
+        } else {
+            Obj* unreached = object;
+            object = object->next;
+
+            if (previous != NULL) { // unlink object (make the previous object skip it)
+                previous->next = object;
+            } else { // if the object is the head, change the head to the next object
+                vm.objects = object;
+            }
+
+            freeObject(unreached);
+        }
+    }
+}
+
 void collectGarbage() {
 #ifdef DEBUG_LOG_GC
     printf("-- gc begin\n");
+    size_t before = vm.bytesAllocated;
 #endif
 
     markRoots();
     traceRefrences();
+    // need to remove the strings that were interned and are unreachable. they cannot be roots because all will be marked.
+    // they are refrenced and then marked. now the strings that were not marked need to be deleted.
+    tableRemoveWhite(&vm.strings);
+    // printf("HAPPENS AFTER THIS\n");
+    sweep();
+
+    vm.nextGC = vm.bytesAllocated * GC_HEAP_GROW_FACTOR;
 
 #ifdef DEBUG_LOG_GC
   printf("-- gc end\n");
+  printf("  collect %zu bytes (from %zu to %zu) next at %zu", before - vm.bytesAllocated, before, vm.bytesAllocated, vm.nextGC);
 #endif
 }
 
@@ -184,3 +228,4 @@ void freeObjects() {
 
     free(vm.grayStack);
 }
+ 
