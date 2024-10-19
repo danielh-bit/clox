@@ -3,11 +3,13 @@
 
 #include "common.h"
 #include "chunk.h"
+#include "table.h"
 #include "value.h"
 
 #define OBJ_TYPE(value)     (AS_OBJ(value)->type)
 
 #define IS_CLASS(value)     (isObjType(value, OBJ_CLASS))
+#define IS_INSTANCE(value)     isObjType(value, OBJ_INSTANCE)
 #define IS_CLOSURE(value)   isObjType(value, OBJ_CLOSURE)
 #define IS_FUNCTION(value)  isObjType(value, OBJ_FUNCTION)
 #define IS_NATIVE(value)    isObjType(value, OBJ_NATIVE)
@@ -16,6 +18,7 @@
 
 // take a pointer to a valid string obj and convert it to obj.
 #define AS_CLASS(value)     ((ObjClass*) AS_OBJ(value))
+#define AS_INSTANCE(value)  ((ObjInstance*)AS_OBJ(value))
 #define AS_CLOSURE(value)   ((ObjClosure*) AS_OBJ(value))
 #define AS_FUNCTION(value)  ((ObjFunction*) AS_OBJ(value))
 #define AS_NATIVE(value)    (((ObjNative*)AS_OBJ(value))->function)
@@ -25,6 +28,7 @@
 
 typedef enum {
     OBJ_CLASS,
+    OBJ_INSTANCE,
     OBJ_CLOSURE,
     OBJ_FUNCTION,
     OBJ_NATIVE,
@@ -84,6 +88,13 @@ typedef struct {
     ObjString* name;
 } ObjClass;
 
+typedef struct {
+    Obj obj;
+    ObjClass* klass;
+    Table fields; // to allow runtime addition of fields (dynamic stuff indeed)
+} ObjInstance;
+
+ObjInstance* newInstance(ObjClass* klass);
 ObjClass* newClass(ObjString* name);
 ObjClosure* newClosure(ObjFunction* function);
 ObjFunction* newFunction();

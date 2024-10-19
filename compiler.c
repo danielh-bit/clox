@@ -446,6 +446,18 @@ static void call(bool canAssign) {
     emitBytes(OP_CALL, argCount);
 }
 
+static void dot(bool canAssign) {
+    consume(TOKEN_IDENTIFIER, "Expect property name after '.'"); // property because lox allows refrencing methods
+    uint8_t name = identifierConstant(&parser.previous);
+
+    if (canAssign && match(TOKEN_EQUAL)) { // canAssign so no assignments will be attempted when precedence does not allow
+        expression();
+        emitBytes(OP_SET_PROPERTY, name);
+    } else {
+        emitBytes(OP_GET_PROPERTY, name);
+    }
+}
+
 static void literal(bool canAssign) {
     switch(parser.previous.type) {
         case TOKEN_FALSE: emitByte(OP_FALSE); break;
@@ -503,7 +515,8 @@ static void classDeclaration() {
     declareVariable();
     
     emitBytes(OP_CLASS, nameConstant);
-    defineVariable(nameConstant);
+    defineVariable(nameConstant); 
+    // we difine the variable before the body to let refrences from inside the body.
 
     consume(TOKEN_LEFT_BRACE, "Expect '{' after class declaration.");
 
@@ -826,7 +839,7 @@ static void synchronize() {
 
 static void declaration() {
     if (match(TOKEN_CLASS)) {
-        classDeclaratio();
+        classDeclaration();
     } else if (match(TOKEN_FUN)) {
         funDeclaration();
     } else if (match(TOKEN_VAR)) {
@@ -950,7 +963,7 @@ ParseRule rules[] = {
   [TOKEN_LEFT_BRACE]    = {NULL,     NULL,      PREC_NONE}, 
   [TOKEN_RIGHT_BRACE]   = {NULL,     NULL,      PREC_NONE},
   [TOKEN_COMMA]         = {NULL,     NULL,      PREC_NONE},
-  [TOKEN_DOT]           = {NULL,     NULL,      PREC_NONE},
+  [TOKEN_DOT]           = {NULL,     dot,       PREC_CALL},
   [TOKEN_MINUS]         = {unary,    binary,    PREC_TERM},
   [TOKEN_PLUS]          = {NULL,     binary,    PREC_TERM},
   [TOKEN_SEMICOLON]     = {NULL,     NULL,      PREC_NONE},
