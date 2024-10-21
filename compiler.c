@@ -260,6 +260,7 @@ static void statement();
 static void declaration();
 static ParseRule* getRule(TokenType type);
 static void parsePrecedence(Precedence precedence);
+static void namedVariable(Token name, bool canAssign);
 
 static uint8_t identifierConstant(Token* name) {
     return makeConstant(OBJ_VAL(copyString(name->start, name->length)));
@@ -509,20 +510,35 @@ static void function(FunctionType type) {
     }
 }
 
+static void method() {
+    consume(TOKEN_IDENTIFIER, "Expect method name.");
+    uint8_t constant = identifierConstant(&parser.previous);
+
+    // compiles the method
+    FunctionType type = TYPE_FUNCTION;
+    function(type);
+    emitBytes(OP_METHOD, constant);
+}
+
 static void classDeclaration() {
     consume(TOKEN_IDENTIFIER, "Expect class name.");
+    Token className = parser.previous;
     uint8_t nameConstant = identifierConstant(&parser.previous);
     declareVariable();
     
     emitBytes(OP_CLASS, nameConstant);
     defineVariable(nameConstant); 
-    // we difine the variable before the body to let refrences from inside the body.
+    // we define the variable before the body to let refrences from inside the body.
 
+    namedVariable(className, false); // this will generate the bytecode to find the class. (in the stack)
+    // this is needed for finding the class to which the methods shall be bound.
     consume(TOKEN_LEFT_BRACE, "Expect '{' after class declaration.");
 
-    // add field, constructors and methods here.
+    while (!check(TOKEN_RIGHT_BRACE) && !check(TOKEN_EOF))
+        method();
 
     consume(TOKEN_RIGHT_BRACE, "Expect '}' after class body");
+    emitByte(OP_POP); // this is to clear the className of the stack.
 }
 
 static void funDeclaration() {

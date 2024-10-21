@@ -8,25 +8,27 @@
 
 #define OBJ_TYPE(value)     (AS_OBJ(value)->type)
 
-#define IS_CLASS(value)     (isObjType(value, OBJ_CLASS))
-#define IS_INSTANCE(value)     isObjType(value, OBJ_INSTANCE)
-#define IS_CLOSURE(value)   isObjType(value, OBJ_CLOSURE)
-#define IS_FUNCTION(value)  isObjType(value, OBJ_FUNCTION)
-#define IS_NATIVE(value)    isObjType(value, OBJ_NATIVE)
-// this is in a separate function.
-#define IS_STRING(value)    isObjType(value, OBJ_STRING)
+#define IS_BOUND_METHOD(value)  isObjType(value, OBJ_BOUND_METHOD)
+#define IS_CLASS(value)         isObjType(value, OBJ_CLASS)
+#define IS_INSTANCE(value)      isObjType(value, OBJ_INSTANCE)
+#define IS_CLOSURE(value)       isObjType(value, OBJ_CLOSURE)
+#define IS_FUNCTION(value)      isObjType(value, OBJ_FUNCTION)
+#define IS_NATIVE(value)        isObjType(value, OBJ_NATIVE)
+#define IS_STRING(value)        isObjType(value, OBJ_STRING)
 
-// take a pointer to a valid string obj and convert it to obj.
-#define AS_CLASS(value)     ((ObjClass*) AS_OBJ(value))
-#define AS_INSTANCE(value)  ((ObjInstance*)AS_OBJ(value))
-#define AS_CLOSURE(value)   ((ObjClosure*) AS_OBJ(value))
-#define AS_FUNCTION(value)  ((ObjFunction*) AS_OBJ(value))
-#define AS_NATIVE(value)    (((ObjNative*)AS_OBJ(value))->function)
-#define AS_STRING(value)    ((ObjString*)AS_OBJ(value))
+// take a value and convert it to obj.
+#define AS_BOUND_METHOD(value)  ((ObjBoundMethod*)AS_OBJ(value))
+#define AS_CLASS(value)         ((ObjClass*) AS_OBJ(value))
+#define AS_INSTANCE(value)      ((ObjInstance*)AS_OBJ(value))
+#define AS_CLOSURE(value)       ((ObjClosure*) AS_OBJ(value))
+#define AS_FUNCTION(value)      ((ObjFunction*) AS_OBJ(value))
+#define AS_NATIVE(value)        (((ObjNative*)AS_OBJ(value))->function)
+#define AS_STRING(value)        ((ObjString*)AS_OBJ(value))
 // take a pointer to a valid string obj and convert it to a string in c (char *).
-#define AS_CSTRING(value)   (((ObjString*)AS_OBJ(value))->chars)
+#define AS_CSTRING(value)       (((ObjString*)AS_OBJ(value))->chars)
 
 typedef enum {
+    OBJ_BOUND_METHOD,
     OBJ_CLASS,
     OBJ_INSTANCE,
     OBJ_CLOSURE,
@@ -86,6 +88,7 @@ typedef struct {
 typedef struct {
     Obj obj;
     ObjString* name;
+    Table methods;
 } ObjClass;
 
 typedef struct {
@@ -94,6 +97,15 @@ typedef struct {
     Table fields; // to allow runtime addition of fields (dynamic stuff indeed)
 } ObjInstance;
 
+typedef struct {
+    Obj obj;
+    Value reciever; // although this is always an ObjInstance, it will be easier to use Value because pointer conversions.
+    ObjClosure* method;
+} ObjBoundMethod; // this is to deal with remembering the object that called the method.
+// since calling a method can be separated from the obj calling it (e.g var m = obj.method; m()).
+// we need to remember the original object using this wrapper
+
+ObjBoundMethod* newBoundMethod(Value reciever, ObjClosure* method);
 ObjInstance* newInstance(ObjClass* klass);
 ObjClass* newClass(ObjString* name);
 ObjClosure* newClosure(ObjFunction* function);
