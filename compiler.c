@@ -52,6 +52,7 @@ typedef struct {
 } Upvalue;
 
 typedef enum {
+    TYPE_METHOD,
     TYPE_FUNCTION,
     TYPE_SCRIPT,
 } FunctionType;
@@ -67,9 +68,14 @@ typedef struct Compiler {
     int scopeDepth;
 } Compiler;
 
+typedef struct ClassCompiler {
+    struct ClassCompiler* enclosing; // it is possible to nest class declarations.
+} ClassCompiler;
+
 Parser parser;
 // because BORING!
 Compiler* current = NULL;
+ClassCompiler* currentClass = NULL;
 
 int startJump = -1; // not in a loop marking
 
@@ -215,8 +221,14 @@ static void initCompiler(Compiler* compiler, FunctionType type) {
     Local* local = &current->locals[current->localCount++];
     local->depth = 0;
     local->isCaptured = false;
-    local->name.start = "";
-    local->name.length = 0;
+    // if the compiler is for a method. allocate stack position zero for the reciever (object)
+    if (type != TYPE_FUNCTION) {
+        local->name.start = "this"; // this is for saving the reciever of a bound method.
+        local->name.length = 4;
+    } else {
+        local->name.start = "";
+        local->name.length = 0;
+    }
 }
 
 // returns the current function that was compiled
@@ -515,7 +527,7 @@ static void method() {
     uint8_t constant = identifierConstant(&parser.previous);
 
     // compiles the method
-    FunctionType type = TYPE_FUNCTION;
+    FunctionType type = TYPE_METHOD;
     function(type);
     emitBytes(OP_METHOD, constant);
 }
@@ -527,8 +539,12 @@ static void classDeclaration() {
     declareVariable();
     
     emitBytes(OP_CLASS, nameConstant);
-    defineVariable(nameConstant); 
     // we define the variable before the body to let refrences from inside the body.
+    defineVariable(nameConstant); 
+
+    ClassCompiler classCompiler;
+    classCompiler.enclosing = currentClass;
+    currentClass = &classCompiler;
 
     namedVariable(className, false); // this will generate the bytecode to find the class. (in the stack)
     // this is needed for finding the class to which the methods shall be bound.
@@ -539,6 +555,8 @@ static void classDeclaration() {
 
     consume(TOKEN_RIGHT_BRACE, "Expect '}' after class body");
     emitByte(OP_POP); // this is to clear the className of the stack.
+
+    currentClass = currentClass->enclosing;
 }
 
 static void funDeclaration() {
@@ -960,6 +978,14 @@ static void variable(bool canAssign) {
     namedVariable(parser.previous, canAssign);
 }
 
+static void this_(bool canAssing) { // because 'this' is a reserved word in C++.
+    if (currentClass == NULL) {
+        error("Can't use 'this' outside of a class.");
+        return;
+    }
+    variable(false); // false to disallow assigning this.
+}
+
 static void unary(bool canAssign) {
     TokenType operatorType = parser.previous.type;
 
@@ -1008,7 +1034,7 @@ ParseRule rules[] = {
   [TOKEN_PRINT]         = {NULL,     NULL,      PREC_NONE},
   [TOKEN_RETURN]        = {NULL,     NULL,      PREC_NONE},
   [TOKEN_SUPER]         = {NULL,     NULL,      PREC_NONE},
-  [TOKEN_THIS]          = {NULL,     NULL,      PREC_NONE},
+  [TOKEN_THIS]          = {this_,    NULL,      PREC_NONE},
   [TOKEN_TRUE]          = {literal,  NULL,      PREC_NONE},
   [TOKEN_VAR]           = {NULL,     NULL,      PREC_NONE},
   [TOKEN_WHILE]         = {NULL,     NULL,      PREC_NONE},

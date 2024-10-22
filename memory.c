@@ -193,6 +193,7 @@ static void markRoots() {
         markObject((Obj*)upvalue);
     }
 
+    markObject((Obj*) vm.initString);
     markTable(&vm.globals);
     markCompilerRoots();
 }
