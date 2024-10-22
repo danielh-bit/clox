@@ -160,6 +160,35 @@ static bool callValue(Value callee, int argCount) {
     return false;
 }
 
+static bool invokeFromClass(ObjClass* klass, ObjString* name, int argCount) {
+    Value method;
+    if (!tableGet(&klass->methods, name, &method)) {
+        runtimeError("Undefined property '%s'.", name->chars);
+        return false;
+    }
+    return call(AS_CLOSURE(method), argCount);
+}
+
+static bool invoke(ObjString* name, int argCount) {
+    Value reciever = peek(argCount); // it is bellow arguments on the stack.
+
+    if (!IS_INSTANCE(reciever)) {
+        runtimeError("Only instances have methods.");
+        return false;
+    }
+
+    ObjInstance* instance = AS_INSTANCE(reciever);
+
+    // this block for fields that are functions, they are not methods, but they are still callable.
+    Value value;
+    if (tableGet(&instance->fields, name, &value)) {
+        vm.stackTop[-argCount - 1] = value;
+        return callValue(value, argCount); // reports error if field is not callable.
+    }
+
+    return invokeFromClass(instance->klass, name , argCount);
+}
+
 static bool bindMethod(ObjClass* klass, ObjString* name) {
     Value method;
     if (!tableGet(&klass->methods, name, &method)) {
@@ -450,6 +479,15 @@ static InterpretResult run() {
                 }
                 frame = &vm.frames[vm.frameCount - 1]; // new frame count after mutation from callValue
 
+                break;
+            }
+            case OP_INVOKE: { // invokes methods without the overhead of the ObjBoundMethod.
+                ObjString* method = READ_STRING();
+                int argCount = READ_BYTE();
+                if (!invoke(method, argCount)) {
+                    return INTERPRET_RUNTIME_ERROR;
+                }
+                frame = &vm.frames[vm.frameCount - 1]; // switch current frame to new one.
                 break;
             }
             case OP_CLOSURE: {

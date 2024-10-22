@@ -53,6 +53,7 @@ typedef struct {
 
 typedef enum {
     TYPE_METHOD,
+    TYPE_INITIALIZER,
     TYPE_FUNCTION,
     TYPE_SCRIPT,
 } FunctionType;
@@ -174,7 +175,11 @@ static int emitJump(uint8_t instruction) {
 
 // push a nil return value to the stack and emits return.
 static void emitReturn() {
-    emitByte(OP_NIL); // if no return value, return nil.
+    if (current->type == TYPE_INITIALIZER) {
+        emitBytes(OP_GET_LOCAL, 0); // return the reciever of the constructor.
+    } else {
+        emitByte(OP_NIL); // if no return value, return nil.
+    }
     emitByte(OP_RETURN);
 }
 
@@ -466,6 +471,14 @@ static void dot(bool canAssign) {
     if (canAssign && match(TOKEN_EQUAL)) { // canAssign so no assignments will be attempted when precedence does not allow
         expression();
         emitBytes(OP_SET_PROPERTY, name);
+    } else if (match(TOKEN_LEFT_PAREN)) {
+        // this is for calling methods.
+        // this is not needed because methods are considered properties and can separate calling from getting.
+        // but most of the time methods are called immediately, this removes the overhead when this is the case,
+        // method usage will be faster.
+        uint8_t argCount = argumentList();
+        emitBytes(OP_INVOKE, name);
+        emitByte(argCount);
     } else {
         emitBytes(OP_GET_PROPERTY, name);
     }
@@ -528,6 +541,10 @@ static void method() {
 
     // compiles the method
     FunctionType type = TYPE_METHOD;
+    // if the method is a constructor, set its type as such.
+    if (parser.previous.length == 4 && memcmp(parser.previous.start, "init", 4) == 0) {
+        type = TYPE_INITIALIZER;
+    }
     function(type);
     emitBytes(OP_METHOD, constant);
 }
@@ -809,6 +826,10 @@ static void returnStatement() {
     if (match(TOKEN_SEMICOLON)) {
         emitReturn();
     } else {
+        if (current->type == TYPE_INITIALIZER) {
+            error("Cannot return a value from an initializer.");
+        }
+
         expression();
         consume(TOKEN_SEMICOLON, "Expect ';' after return value.");
         // not emitReturn() because this function pushes a nil return value to the stack
