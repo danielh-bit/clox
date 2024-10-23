@@ -6,7 +6,6 @@
 
 typedef enum {
     OP_CONSTANT,
-    OP_METHOD,
     OP_NIL,
     OP_TRUE,
     OP_FALSE,
@@ -43,6 +42,8 @@ typedef enum {
     OP_CONSTANT_LONG,
     OP_RETURN,
     OP_CLASS,
+    OP_INHERIT,
+    OP_METHOD,
 } OpCode;
 
 typedef struct {

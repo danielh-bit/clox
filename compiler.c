@@ -563,6 +563,19 @@ static void classDeclaration() {
     classCompiler.enclosing = currentClass;
     currentClass = &classCompiler;
 
+    // inheritance.
+    if (match(TOKEN_LESS)) {
+        consume(TOKEN_IDENTIFIER, "Expect superclass name.");
+        variable(false); // compile superclass name
+
+        if (identifiersEqual(&parser.previous, &className)) {
+            error("A class cannot inherit from itself");
+        }
+
+        namedVariable(className, false); // create inherited class.
+        emitByte(OP_INHERIT);
+    }
+
     namedVariable(className, false); // this will generate the bytecode to find the class. (in the stack)
     // this is needed for finding the class to which the methods shall be bound.
     consume(TOKEN_LEFT_BRACE, "Expect '{' after class declaration.");
