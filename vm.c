@@ -189,6 +189,7 @@ static bool invoke(ObjString* name, int argCount) {
     return invokeFromClass(instance->klass, name , argCount);
 }
 
+// retrieves method from class and pushes that method onto the stack.
 static bool bindMethod(ObjClass* klass, ObjString* name) {
     Value method;
     if (!tableGet(&klass->methods, name, &method)) {
@@ -411,6 +412,15 @@ static InterpretResult run() {
                 push(value);
                 break;
             }
+            case OP_GET_SUPER: {
+                ObjString* name = READ_STRING(); // method name
+                ObjClass* superClass = AS_CLASS(pop());
+
+                if (!bindMethod(superClass, name)) // bound method will pop the subclass instance (it is currently on top of the stack).
+                    return INTERPRET_RUNTIME_ERROR;
+                
+                break;
+            }
             case OP_EQUAL:
                 Value b = pop();
                 Value a = pop();
@@ -488,6 +498,16 @@ static InterpretResult run() {
                     return INTERPRET_RUNTIME_ERROR;
                 }
                 frame = &vm.frames[vm.frameCount - 1]; // switch current frame to new one.
+                break;
+            }
+            case OP_SUPER_INVOKE: {
+                ObjString* method = READ_STRING();
+                int argCount = READ_BYTE();
+                ObjClass* superclass = AS_CLASS(pop());
+                if (!invokeFromClass(superclass, method, argCount)) 
+                    return INTERPRET_RUNTIME_ERROR;
+                
+                frame = &vm.frames[vm.frameCount - 1];
                 break;
             }
             case OP_CLOSURE: {

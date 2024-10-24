@@ -11,5 +11,19 @@ class CoffeeMaker {
   }
 }
 
-var maker = CoffeeMaker("coffee and chicory");
-maker.brew();
+class Test < CoffeeMaker {
+  init(coffee) {
+    super.init(coffee);
+    this.something = "t1";
+  }
+  brew1() {
+    super.brew();
+    print this.something;
+  }
+}
+
+//var maker = CoffeeMaker("coffee and chicory");
+//maker.brew();
+
+var test = Test("test");
+test.brew1();

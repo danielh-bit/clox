@@ -71,6 +71,7 @@ typedef struct Compiler {
 
 typedef struct ClassCompiler {
     struct ClassCompiler* enclosing; // it is possible to nest class declarations.
+    bool hasSuperClass;
 } ClassCompiler;
 
 Parser parser;
@@ -278,6 +279,9 @@ static void declaration();
 static ParseRule* getRule(TokenType type);
 static void parsePrecedence(Precedence precedence);
 static void namedVariable(Token name, bool canAssign);
+static void variable(bool canAssign);
+static void addLocal(Token name);
+static Token syntheticToken(const char* text);
 
 static uint8_t identifierConstant(Token* name) {
     return makeConstant(OBJ_VAL(copyString(name->start, name->length)));
@@ -559,7 +563,9 @@ static void classDeclaration() {
     // we define the variable before the body to let refrences from inside the body.
     defineVariable(nameConstant); 
 
+    // we add this to know when the compiler is in a class. this gets to check if 'this' keyword is misused.
     ClassCompiler classCompiler;
+    classCompiler.hasSuperClass = false;
     classCompiler.enclosing = currentClass;
     currentClass = &classCompiler;
 
@@ -572,8 +578,15 @@ static void classDeclaration() {
             error("A class cannot inherit from itself");
         }
 
+        // we add a new scope for super.
+        // this is important because if two classes were declared in the same scope, super would have collided.
+        beginScope();
+        addLocal(syntheticToken("super"));
+        defineVariable(0);
+
         namedVariable(className, false); // create inherited class.
         emitByte(OP_INHERIT);
+        classCompiler.hasSuperClass = true;
     }
 
     namedVariable(className, false); // this will generate the bytecode to find the class. (in the stack)
@@ -585,6 +598,9 @@ static void classDeclaration() {
 
     consume(TOKEN_RIGHT_BRACE, "Expect '}' after class body");
     emitByte(OP_POP); // this is to clear the className of the stack.
+
+    if (classCompiler.hasSuperClass)
+        endScope(); // close super scope and discard super var.
 
     currentClass = currentClass->enclosing;
 }
@@ -1012,6 +1028,42 @@ static void variable(bool canAssign) {
     namedVariable(parser.previous, canAssign);
 }
 
+static Token syntheticToken(const char* text) {
+    Token token;
+    token.start = text;
+    token.length = (int) strlen(text);
+    return token;
+}
+
+static void super_(bool canAssign) {
+    if (currentClass == NULL) {
+        error("Can't use 'super' outside of a class.");
+    } else if (!currentClass->hasSuperClass) {
+        error("Cant use 'super' in a class with no superclass.");
+    }
+
+    consume(TOKEN_DOT, "Expect '.' after 'super'"); // we are still able to call super.init(). but I prefer super(). maybe change later.
+    consume(TOKEN_IDENTIFIER, "Expect superclass method name.");
+    uint8_t name = identifierConstant(&parser.previous); // method name
+
+    // compile subclass
+    namedVariable(syntheticToken("this"), false);
+    
+    // optimize for instant invoking after getting super method.
+    if (match(TOKEN_LEFT_PAREN)) {
+        uint8_t argCount = argumentList();
+        // super will be after argument list. it will be poped and used for super invoke.
+        // this ensures that the instance ('this') will be first on stack, after this argument list.
+        namedVariable(syntheticToken("super"), false);
+        emitBytes(OP_SUPER_INVOKE, name);
+        emitByte(argCount);
+    } else {
+        namedVariable(syntheticToken("super"), false);
+        // use sub and super in runtime.
+        emitBytes(OP_GET_SUPER, name);
+    }
+}
+
 static void this_(bool canAssing) { // because 'this' is a reserved word in C++.
     if (currentClass == NULL) {
         error("Can't use 'this' outside of a class.");
@@ -1067,7 +1119,7 @@ ParseRule rules[] = {
   [TOKEN_OR]            = {NULL,     or_,       PREC_OR},
   [TOKEN_PRINT]         = {NULL,     NULL,      PREC_NONE},
   [TOKEN_RETURN]        = {NULL,     NULL,      PREC_NONE},
-  [TOKEN_SUPER]         = {NULL,     NULL,      PREC_NONE},
+  [TOKEN_SUPER]         = {super_,   NULL,      PREC_NONE},
   [TOKEN_THIS]          = {this_,    NULL,      PREC_NONE},
   [TOKEN_TRUE]          = {literal,  NULL,      PREC_NONE},
   [TOKEN_VAR]           = {NULL,     NULL,      PREC_NONE},

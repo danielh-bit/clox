@@ -20,6 +20,7 @@ typedef enum {
     OP_SET_UPVALUE,
     OP_GET_PROPERTY,
     OP_SET_PROPERTY,
+    OP_GET_SUPER,
     // would be faster to do != , >=, <= but he cant bother.
     // and for NaN there is the problem that a <= b is not the same as !(a > b)
     OP_EQUAL,
@@ -37,6 +38,7 @@ typedef enum {
     OP_LOOP,
     OP_CALL,
     OP_INVOKE,
+    OP_SUPER_INVOKE,
     OP_CLOSURE,
     OP_CLOSE_UPVALUE,
     OP_CONSTANT_LONG,
