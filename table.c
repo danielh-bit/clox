@@ -33,6 +33,9 @@ static Entry* findEntry(Entry* entries, int capacity,
   uint32_t index = key->hash % capacity;
 */
 //> Optimization initial-index
+  // this works because the capacity is always a power of 2.
+  // the capacity - 1, gives us a mask that only covers for the bits of the remeinder.
+  // in other words, the capacity - 1 is and-ed with the key->hash == key->hash & capacity.
   uint32_t index = key->hash & (capacity - 1);
 //< Optimization initial-index
 //> find-entry-tombstone

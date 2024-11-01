@@ -30,6 +30,17 @@ void freeValueArray(ValueArray* array) {
 }
 
 void printValue(Value value) {
+#ifdef NAN_BOXING
+    if (IS_BOOL(value)) {
+        printf(AS_BOOL(value) ? "true" : "false");
+    } else if (IS_NIL(value)) {
+        printf("nil");
+    } else if (IS_NUMBER(value)) {
+        printf("%g", AS_NUMBER(value));
+    } else if (IS_OBJ(value)) {
+        printObject(value);
+    }
+#else
     switch(value.type) {
         case VAL_BOOL:
             printf(AS_BOOL(value) ? "true": "false");
@@ -38,6 +49,7 @@ void printValue(Value value) {
         case VAL_NUMBER: printf("%g", AS_NUMBER(value)); break;
         case VAL_OBJ: printObject(value); break;
     }
+#endif
 }
 
 // PHP considers the strings “1” and “01” to be 
@@ -49,6 +61,15 @@ void printValue(Value value) {
 // thats kinda funny.
 
 bool valuesEqual(Value a, Value b) {
+#ifdef NAN_BOXING
+    // this is because NAN values don't equal to themselves for some reason.
+    // because the values are now uint64_t and not double, we need to convert them
+    // to comply with the IEEE 754 spec.
+    // if (IS_NUMBER(a) && IS_NUMBER(b)) {
+    //     return AS_NUMBER(a) == AS_NUMBER(b);     this is commented because fuck the IEEE 754 spec.
+    // }
+    return a == b; // crazy!
+#else
     if (a.type != b.type)
         return false;
     
@@ -60,4 +81,5 @@ bool valuesEqual(Value a, Value b) {
         case VAL_OBJ:   return AS_OBJ(a) == AS_OBJ(b);
         default: return false; // unreachable.
     }
+#endif
 }
