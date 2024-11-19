@@ -146,9 +146,10 @@ static void freeObject(Obj* object) {
             ObjInstance* instance = (ObjInstance*) object;
             freeTable(&instance->fields); // garbage collector will free entries to table.
             FREE(ObjInstance, object);
+            break;
         }
         case OBJ_CLOSURE: {
-            ObjClosure* closure = (ObjClosure*) closure;
+            ObjClosure* closure = (ObjClosure*) object;
             // printf("arity: %d\n", closure->upvalueCount);
             FREE_ARRAY(ObjUpvalue*, closure->upvalues, closure->upvalueCount);
             // we don't free the function because the closure doesn't own the function
